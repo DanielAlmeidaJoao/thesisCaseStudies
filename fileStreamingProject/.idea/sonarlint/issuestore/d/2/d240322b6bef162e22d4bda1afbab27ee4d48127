@@ -1,7 +1,0 @@
-
-{	java:S120"ZRename this package name to match the regular expression '^[a-z_]+(\.[a-z_][a-z0-9_]*)*$'.(è›«Ãüÿÿÿÿ8û¬€§1
-v	java:S115"ZRename this constant name to match the regular expression '^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$'.(™çæ8ş¬€§1
-u
-java:S2975"SRemove this "clone" implementation; use a copy constructor or copy factory instead.(×‹»ÿÿÿÿÿ8‚¬€§1
-j
-java:S1182"HUse super.clone() to create and seed the cloned instance to be returned.(×‹»ÿÿÿÿÿ8‚¬€§1
