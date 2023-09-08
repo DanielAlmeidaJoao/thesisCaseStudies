@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="INFO" shutdownHook="disable">
+    <Appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="%highlight{%level{length=1}[%d{HH:mm:ss,SSS}] [%t]%logger{0}:} %msg%n"/>
+        </Console>
+
+        <File name="MyFile" fileName="${sys:logFilename}.log" append="false" immediateFlush="true">
+            <PatternLayout pattern="%highlight{%level{length=1}[%d{HH:mm:ss,SSS}] [%t]%logger{0}:} %msg%n"/>
+        </File>
+
+
+    </Appenders>
+
+    <Loggers>
+        <Logger level="info" name="quicSupport"/>
+        <!-- UNCOMMENT TO SPECIFY LOG LEVEL OF PACKAGES
+        <Logger level="info" name="plumtree"/>
+        <Logger level="info" name="protocols.overlays"/>
+        <Logger level="debug" name="protocols.dissemination"/>
+        <Logger level="OFF" name="io.netty"/>
+        <Logger level="OFF" name="network"/>
+        <Logger level="OFF" name="channel"/>
+        <Logger level="OFF" name="pt.unl.fct.di.novasys.babel"/>
+        -->
+
+
+        <!--
+            <logger name="plumtree" additivity="false">
+                <level value="off"/>
+                <appender-ref ref="Console"/>
+            </logger>
+            <logger name="apps" additivity="false">
+                <level value="debug"/>
+                <appender-ref ref="MyFile"/>
+            </logger>
+
+        -->
+
+        <!--
+        <logger name="mainFiles.Main55" additivity="false">
+            <level value="info"/>
+             //<appender-ref ref="MyFile"/> -->
+        <!--
+            <appender-ref ref="Console"/>
+        </logger> -->
+
+        <Root level="INFO">
+            <AppenderRef ref="Console" level="INFO"/>
+            <!-- <AppenderRef ref="MyFile" level="debug"/> -->
+        </Root>
+    </Loggers>
+
+</Configuration>

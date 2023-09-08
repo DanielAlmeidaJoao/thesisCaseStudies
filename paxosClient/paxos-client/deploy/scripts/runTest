@@ -1,0 +1,7 @@
+ java -Dlog4j.configurationFile=log4j2.xml \
+											-DlogFilename=l4j_dan \
+											-cp paxos-client.jar site.ycsb.Client -t -s -P config.properties \
+											-threads 3 -p fieldlength=1024 \
+											-p hosts=$client_connections \
+											-p readproportion=50 -p insertproportion=50 \
+											| tee dan2.log

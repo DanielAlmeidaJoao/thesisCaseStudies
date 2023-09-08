@@ -1,0 +1,1 @@
+./run-tests.sh -s -n 4 -p 3 -t 10

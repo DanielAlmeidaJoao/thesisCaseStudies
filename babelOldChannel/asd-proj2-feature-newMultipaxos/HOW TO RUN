@@ -1,0 +1,33 @@
+H top : para ver a memoria q o programa esta a gastar
+
+./exec.sh 7 1024 192.168.1.85:35000,192.168.1.85:35001,192.168.1.85:35002 50 50
+
+./exec.sh2 7 1024 172.30.10.116:35000,172.30.10.116:35001,172.30.10.116:35002 50 50
+
+java -Xmx200M -cp target/asdProj2.jar Main p2p_port=10103 server_port=35002
+
+java -Xmx200M -cp target/asdProj2.jar Main p2p_port=10102 server_port=35001
+
+java -Xmx200M -cp target/asdProj2.jar Main p2p_port=10101 server_port=35000
+
+
+cd /work/asd2223-proj2-base && java -Xmx200M -cp asd2223-proj2-base/asdProj2.jar Main p2p_port=10102 server_port=35001
+
+
+172.30.10.116
+
+172.30.10.117
+
+172.30.10.118
+
+192.168.1.85
+
+./exec.sh2 7 1024 172.30.10.116:35000,172.30.10.117:35001,172.30.10.118:35002 50 50
+
+//ANDRE PAXOS
+
+java -Xmx200M -cp target/asdProj2.jar Main p2p_port=34000 address=127.0.0.1 server_port=35000 &
+java -Xmx200M -cp target/asdProj2.jar Main p2p_port=34001 address=127.0.0.1 server_port=35001 &
+java -Xmx200M -cp target/asdProj2.jar Main p2p_port=34002 address=127.0.0.1 server_port=35002 &
+
+./exec.sh 3 1024 127.0.0.1:35000,127.0.0.1:35001,127.0.0.1:35002 50 50
