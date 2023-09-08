@@ -45,7 +45,7 @@ public class Main {
         //PeerSampling sampling = new PeerSampling(props);
         String NETWORK_PROTO  = props.getProperty("NETWORK_PROTO");
 
-        logger.info("Hello, I am {}. PROTO: {}", self,NETWORK_PROTO);
+        logger.info("THESIS BABEL, I am {}. PROTO: {}", self,NETWORK_PROTO);
 
         if(isServer){
             StreamingServer streamingServer = new StreamingServer("StreamingServer",props);

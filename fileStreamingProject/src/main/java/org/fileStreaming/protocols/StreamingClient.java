@@ -8,6 +8,7 @@ import appExamples2.appExamples.channels.babelNewChannels.udpBabelChannel.BabelU
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.fileStreaming.messages.FileBytesMessage;
 import org.fileStreaming.messages.IHaveFile;
 import org.fileStreaming.timers.BroadcastTimer;
 import pt.unl.fct.di.novasys.babel.channels.events.*;
@@ -43,6 +44,8 @@ public class StreamingClient extends GenericProtocolExtension {
     FileOutputStream fileOutputStream;
     String NETWORK_PROTO;
     public final long disseminationStart;
+    public final boolean isMessageSend;
+
     Path filePath;
     public StreamingClient(String protoName, Properties properties) throws Exception{
         super(protoName, PROTO_ID);
@@ -55,6 +58,8 @@ public class StreamingClient extends GenericProtocolExtension {
         //broadcastAddress = new Host(InetAddress.getByName(broadCastAddress),Integer.parseInt(broadcastPort));
         connectionProtoHost = new Host(InetAddress.getByName(address),Integer.parseInt(port));
         disseminationStart = Long.parseLong(properties.getProperty("disseminationStart"));
+        isMessageSend = properties.get("MESSAGE")!=null;
+
 
         Properties channelProps;
         /**
@@ -72,12 +77,19 @@ public class StreamingClient extends GenericProtocolExtension {
         NETWORK_PROTO = properties.getProperty("NETWORK_PROTO");
         connectionProtoChannel = createConnectionChannel(NETWORK_PROTO, address, port,properties);
         registerMessageSerializer(connectionProtoChannel, IHaveFile.ID,IHaveFile.serializer);
+        registerMessageSerializer(connectionProtoChannel, FileBytesMessage.ID,FileBytesMessage.serializer);
+
         registerMessageHandler(connectionProtoChannel, IHaveFile.ID, this::uponIHaveFileMessage,null,null);
+        registerMessageHandler(connectionProtoChannel, FileBytesMessage.ID, this::uponFileByets,null,null);
+
         registerChannelEventHandler(connectionProtoChannel, OnStreamConnectionUpEvent.EVENT_ID, this::uponStreamConnectionUp);
         registerChannelEventHandler(connectionProtoChannel, OnMessageConnectionUpEvent.EVENT_ID, this::uponMessageConnectionUp);
         registerChannelEventHandler(connectionProtoChannel, OnChannelError.EVENT_ID, this::uponChannelError);
         registerStreamDataHandler(connectionProtoChannel,this::uponStreamBytes,null, this::uponMsgFail2);
         registerChannelEventHandler(connectionProtoChannel, OnConnectionDownEvent.EVENT_ID, this::uponConnectionDown);
+
+        logger.info("{} IS MESSAGE {} . PROTO {}. CLIENT",connectionProtoHost,isMessageSend,NETWORK_PROTO);
+
 
     }
     long totalReceived = 0;
@@ -87,24 +99,24 @@ public class StreamingClient extends GenericProtocolExtension {
     }
 
 
-    void execute(BabelStreamDeliveryEvent event){
+    private void executeAux(int readAbleBytes, byte [] data, Host from){
         if(timeStart==0){
             logger.info("RECEIVING FILE BYTES!!");
             timeStart = System.currentTimeMillis();
         }
-        int available = event.babelOutputStream.readableBytes();
+        int available = readAbleBytes;
         totalReceived += available;
         long timeReceivedAll =-1;
         if(iHaveFile.fileLength==totalReceived){
             timeReceivedAll =System.currentTimeMillis();
             logger.info("TIME_ELAPSED: {}. RECEIVED BYTES {}",timeReceivedAll-timeStart,totalReceived);
         }
-        byte [] p = event.babelOutputStream.readBytes();
+        byte [] p = data;
         try {
             fileOutputStream.write(p);
             if(iHaveFile.fileLength==totalReceived){
                 IHaveFile iHaveFile1 = new IHaveFile(timeReceivedAll,iHaveFile.fileName,connectionProtoHost);
-                sendMessage(iHaveFile1,event.getFrom());
+                sendMessage(iHaveFile1,from);
                 fileOutputStream.close();
             }
         } catch (IOException e) {
@@ -112,6 +124,9 @@ public class StreamingClient extends GenericProtocolExtension {
             e.printStackTrace();
             System.exit(0);
         }
+    }
+    void execute(BabelStreamDeliveryEvent event){
+        executeAux(event.babelOutputStream.readableBytes(),event.babelOutputStream.readBytes(),event.getFrom());
     }
 
     private void uponStreamBytes(BabelStreamDeliveryEvent event) {
@@ -128,6 +143,9 @@ public class StreamingClient extends GenericProtocolExtension {
         logger.info("{} ERROR ----- {}",connectionProtoHost,event);
     }
 
+    private void uponFileByets(FileBytesMessage msg, Host from, short sourceProto, int channelId, String streamId) {
+        executeAux(msg.dataLength,msg.data,from);
+    }
     private void uponIHaveFileMessage(IHaveFile msg, Host from, short sourceProto, int channelId, String streamId) {
         logger.info("RECEIVED I HAVE A FILE: {} {}. FROM {}",msg.fileLength,msg.fileName,from);
         if(iHaveFile==null){
@@ -140,7 +158,9 @@ public class StreamingClient extends GenericProtocolExtension {
                 System.out.println("EXIT");
                 System.exit(0);
             }
-            openStreamConnectionEvenIfItsConnected(iHaveFile.host,connectionProtoChannel);
+            if(!isMessageSend){
+                openStreamConnectionEvenIfItsConnected(iHaveFile.host,connectionProtoChannel);
+            }
         }
     }
     @Override

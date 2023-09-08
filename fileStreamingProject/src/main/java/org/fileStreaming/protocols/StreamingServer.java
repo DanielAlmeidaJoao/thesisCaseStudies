@@ -5,6 +5,7 @@ import appExamples2.appExamples.channels.babelNewChannels.tcpChannels.BabelTCP_P
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.fileStreaming.messages.FileBytesMessage;
 import org.fileStreaming.messages.IHaveFile;
 import org.fileStreaming.timers.BroadcastTimer;
 import pt.unl.fct.di.novasys.babel.channels.events.*;
@@ -15,6 +16,7 @@ import quicSupport.utils.QUICLogics;
 import tcpSupport.tcpChannelAPI.channel.NettyTCPChannel;
 import tcpSupport.tcpChannelAPI.utils.TCPChannelUtils;
 
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.nio.file.Path;
@@ -31,6 +33,7 @@ public class StreamingServer extends GenericProtocolExtension {
     public final Host connectionProtoHost;
     public final long disseminationStart, disseminationPeriod;
     Map<Host,Pair<Long,Long>> timeElapsed;
+    public final boolean isMessageSend;
     Path filePath;
 
     public StreamingServer(String protoName, Properties properties) throws Exception{
@@ -43,6 +46,8 @@ public class StreamingServer extends GenericProtocolExtension {
 
         disseminationPeriod = Long.parseLong(properties.getProperty("disseminationPeriod"));
         disseminationStart = Long.parseLong(properties.getProperty("disseminationStart"));
+
+        isMessageSend = properties.get("MESSAGE")!=null;
 
         Properties channelProps;
         String channelName;
@@ -66,6 +71,8 @@ public class StreamingServer extends GenericProtocolExtension {
         Pair<String,Properties> p = createConnectionChannel(netWorkRole,address,port,properties);
         connectionProtoChannel = createChannel(p.getLeft(),p.getRight());
         registerMessageSerializer(connectionProtoChannel,IHaveFile.ID,IHaveFile.serializer);
+        registerMessageSerializer(connectionProtoChannel, FileBytesMessage.ID,FileBytesMessage.serializer);
+
         //registerChannelEventHandler(connectionProtoChannel, OnChannelError.EVENT_ID, this::uponChannelError);
         registerChannelEventHandler(connectionProtoChannel, OnStreamConnectionUpEvent.EVENT_ID, this::uponStreamConnectionUp);
         registerChannelEventHandler(connectionProtoChannel, OnMessageConnectionUpEvent.EVENT_ID, this::uponMessageConnectionUp);
@@ -74,7 +81,7 @@ public class StreamingServer extends GenericProtocolExtension {
         registerChannelEventHandler(connectionProtoChannel, OnConnectionDownEvent.EVENT_ID, this::uponConnectionDown);
         registerMessageHandler(connectionProtoChannel, IHaveFile.ID, this::uponIHaveFileMessage,null,null);
 
-
+        logger.info("{} IS MESSAGE {} . PROTO {}. CLIENT",connectionProtoHost,isMessageSend,netWorkRole);
         //registerTimerHandler(BroadcastTimer.TimerCode, this::uponBroadcastTime);
     }
     private void uponIHaveFileMessage(IHaveFile msg, Host from, short sourceProto, int channelId, String streamId) {
@@ -119,7 +126,37 @@ public class StreamingServer extends GenericProtocolExtension {
         sendMessage(iHaveFile,event.conId);
         System.out.println("BROADCAST SENT");
         logger.info("{} MESSAGE SENT TO {}",connectionProtoHost,event.getNode());
+        if(isMessageSend){
+            //startStreaming(event.getNode(),event.conId);
+            BroadcastTimer b = new BroadcastTimer();
+            b.host = event.getNode();
+            b.conId = event.conId;
+            setupTimer(b, disseminationStart);
+        }
     }
+    private void startStreaming(Host host, String conId) {
+        logger.info("WITH THREAD {} MESSAGE CONNECTION UP. SENDING THE FILE TO {}",connectionProtoHost,host);
+        long start = System.currentTimeMillis();
+        timeElapsed.put(host,Pair.of(start,0L));
+        clients++;
+        new Thread(() -> {
+            try {
+                int size = 1024*64;
+                FileInputStream ff = new FileInputStream(filePath.toFile());
+                byte [] read = new byte[size];
+                int ef = 0;
+                while ( (ef = ff.read(read,0,size))>0){
+                    //sendMessage(new BabelStreamDeliveryEvent(read,ef),host);
+                    sendMessage(new FileBytesMessage(read,ef),conId);
+                    read = new byte[size];
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                System.exit(0);
+            }
+        }).start();
+    }
+
     private void uponMsgFail2(OnStreamDataSentEvent msg, Host host, short destProto,
                               Throwable throwable, int channelId) {
         logger.error("Message {} to {} failed, reason: {}", msg, host, throwable);
@@ -155,16 +192,13 @@ public class StreamingServer extends GenericProtocolExtension {
     }
     int countBroadcast = 0;
     private void uponBroadcastTime(BroadcastTimer timer, long timerId) {
-        countBroadcast++;
-        String name="name_"+countBroadcast;
-        System.out.println("TIMER TRIGGERED "+name);
-        IHaveFile iHaveFile = new IHaveFile(filePath.toFile().length(),name,connectionProtoHost);
-        //sendMessage(iHaveFile,broadcastAddress);
-        System.out.println("BROADCAST SENT");
+        startStreaming(timer.host, timer.conId);
     }
 
     @Override
     public void init(Properties properties) throws HandlerRegistrationException, IOException {
+        registerTimerHandler(BroadcastTimer.TimerCode, this::uponBroadcastTime);
+
         //long id = setupPeriodicTimer(new BroadcastTimer(), disseminationStart, disseminationPeriod);
         //System.out.println("SET TIMER: "+disseminationStart + " -- "+disseminationPeriod+" ID: "+id);
 
